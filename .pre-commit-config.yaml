@@ -1,0 +1,33 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.12.4
+    hooks:
+      # Run the formatter
+      - id: ruff-format
+        name: ruff format
+        description: "Run ruff formatter"
+
+      # Run the linter
+      - id: ruff
+        name: ruff check
+        description: "Run ruff linter"
+        args: [--fix, --exit-non-zero-on-fix]
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.7.1
+    hooks:
+      - id: mypy
+        name: mypy check
+        description: "Run mypy type checking"
+        args: [--config-file=pyproject.toml, --install-types, --non-interactive]
+        files: ^logbull/
+
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        description: "Run pytest tests"
+        entry: uv run pytest
+        language: system
+        pass_filenames: false
+        always_run: true
