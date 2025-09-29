@@ -1,8 +1,8 @@
 """Structlog integration processor for LogBull."""
 
-from datetime import datetime
 from typing import Any, Dict, Optional
 
+from ..core.logger import _generate_unique_nanosecond_timestamp
 from ..core.sender import LogSender
 from ..core.types import LogBullConfig, LogEntry
 from ..utils import LogFormatter, LogValidator
@@ -46,23 +46,6 @@ class StructlogProcessor:
             level = event_dict.get("level", "info").upper()
             message = str(event_dict.get("event", ""))
 
-            # Parse timestamp if present
-            timestamp = None
-            if "timestamp" in event_dict:
-                timestamp_value = event_dict["timestamp"]
-                if isinstance(timestamp_value, datetime):
-                    timestamp = timestamp_value
-                elif isinstance(timestamp_value, str):
-                    try:
-                        # Try to parse ISO format timestamp
-                        timestamp = datetime.fromisoformat(
-                            timestamp_value.replace("Z", "+00:00")
-                        )
-                    except ValueError:
-                        timestamp = datetime.now()
-                else:
-                    timestamp = datetime.now()
-
             # Extract fields (everything except reserved keys)
             reserved_keys = {"level", "event", "timestamp"}
             fields = {
@@ -78,12 +61,15 @@ class StructlogProcessor:
             # Validate log entry
             validated = self.validator.validate_log_entry(level, message, fields)
 
+            # Generate unique timestamp with nanosecond precision
+            timestamp_ns = _generate_unique_nanosecond_timestamp()
+
             # Format log entry
             formatted_entry = self.formatter_util.format_log_entry(
                 level=validated["level"],
                 message=validated["message"],
                 fields=validated["fields"],
-                timestamp=timestamp,
+                timestamp_ns=timestamp_ns,
             )
 
             log_entry: LogEntry = {

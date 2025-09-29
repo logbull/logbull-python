@@ -1,9 +1,9 @@
 """Standard Python logging handler for LogBull."""
 
 import logging
-from datetime import datetime
 from typing import Any, Dict, Optional
 
+from ..core.logger import _generate_unique_nanosecond_timestamp
 from ..core.sender import LogSender
 from ..core.types import LogBullConfig, LogEntry
 from ..utils import LogFormatter, LogValidator
@@ -56,12 +56,15 @@ class LogBullHandler(logging.Handler):
             # Validate log entry
             validated = self.validator.validate_log_entry(level, message, fields)
 
+            # Generate unique timestamp with nanosecond precision
+            timestamp_ns = _generate_unique_nanosecond_timestamp()
+
             # Format log entry
             formatted_entry = self.formatter_util.format_log_entry(
                 level=validated["level"],
                 message=validated["message"],
                 fields=validated["fields"],
-                timestamp=datetime.fromtimestamp(record.created),
+                timestamp_ns=timestamp_ns,
             )
 
             log_entry: LogEntry = {

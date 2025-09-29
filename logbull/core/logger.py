@@ -1,10 +1,33 @@
-import atexit
-from datetime import datetime
+import threading
+import time
 from typing import Any, Dict, Optional
 
 from ..utils import LogFormatter, LogValidator
 from .sender import LogSender
 from .types import LogBullConfig, LogEntry
+
+
+# Module-level unique timestamp generator with nanosecond precision
+_timestamp_lock = threading.Lock()
+_last_timestamp_ns: int = 0
+
+
+def _generate_unique_nanosecond_timestamp() -> int:
+    """Generate a unique timestamp with nanosecond precision.
+
+    Returns nanoseconds since Unix epoch, guaranteed to be unique and monotonic.
+    """
+    global _last_timestamp_ns
+
+    with _timestamp_lock:
+        current_timestamp_ns = time.time_ns()
+
+        # Ensure monotonic timestamps
+        if current_timestamp_ns <= _last_timestamp_ns:
+            current_timestamp_ns = _last_timestamp_ns + 1
+
+        _last_timestamp_ns = current_timestamp_ns
+        return current_timestamp_ns
 
 
 class LogBullLogger:
@@ -27,6 +50,7 @@ class LogBullLogger:
         api_key: Optional[str] = None,
         log_level: str = "INFO",
         context: Optional[Dict[str, Any]] = None,
+        sender: Optional[LogSender] = None,
     ):
         self.validator = LogValidator()
         self.formatter = LogFormatter()
@@ -48,9 +72,11 @@ class LogBullLogger:
 
         self.context = self.formatter.ensure_fields(context) if context else {}
 
-        self.sender = LogSender(self.config)
-
-        atexit.register(self._cleanup)
+        # Use provided sender or create new one
+        if sender is not None:
+            self.sender = sender
+        else:
+            self.sender = LogSender(self.config)
 
     def log(
         self, level: str, message: str, fields: Optional[Dict[str, Any]] = None
@@ -87,6 +113,7 @@ class LogBullLogger:
             api_key=self.config.get("api_key"),
             log_level=self.log_level,
             context=merged_context,
+            sender=self.sender,
         )
 
         return new_logger
@@ -111,11 +138,14 @@ class LogBullLogger:
                 self.context, validated["fields"]
             )
 
+            # Generate unique timestamp with nanosecond precision
+            timestamp_ns = _generate_unique_nanosecond_timestamp()
+
             formatted_entry = self.formatter.format_log_entry(
                 level=validated["level"],
                 message=validated["message"],
                 fields=merged_fields,
-                timestamp=datetime.now(),
+                timestamp_ns=timestamp_ns,
             )
             log_entry: LogEntry = {
                 "level": formatted_entry["level"],
@@ -145,9 +175,3 @@ class LogBullLogger:
 
         console_message = " ".join(console_parts)
         print(console_message)
-
-    def _cleanup(self) -> None:
-        try:
-            self.shutdown()
-        except Exception:
-            pass

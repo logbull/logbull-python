@@ -1,9 +1,7 @@
 """Type definitions and protocols for LogBull core functionality."""
 
 from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional, Protocol
-
-from typing_extensions import TypedDict
+from typing import Any, Dict, List, Literal, Optional, Protocol, TypedDict
 
 
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "WARN", "ERROR", "CRITICAL", "FATAL"]
@@ -43,21 +41,11 @@ class LogBullConfig(TypedDict, total=False):
     log_level: Optional[LogLevel]
 
 
-class HealthCheckResponse(TypedDict, total=False):
-    status: str
-    message: Optional[str]
-    timestamp: Optional[str]
-
-
 class LogSender(Protocol):
     """Protocol for log sending implementations."""
 
     def send_logs(self, logs: List[LogEntry]) -> LogBullResponse:
         """Send logs to LogBull server."""
-        ...
-
-    def check_health(self) -> bool:
-        """Check if LogBull server is available."""
         ...
 
 

@@ -1,6 +1,7 @@
 """Log formatting utilities for LogBull."""
 
 import json
+import time
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
@@ -9,16 +10,20 @@ class LogFormatter:
     def __init__(self, max_message_length: Optional[int] = None):
         self.max_message_length = max_message_length
 
-    def format_timestamp(self, timestamp: Optional[datetime] = None) -> str:
-        """Format timestamp to UTC ISO format with microseconds."""
-        if timestamp is None:
-            timestamp = datetime.now(timezone.utc)
-        elif timestamp.tzinfo is None:
-            timestamp = timestamp.replace(tzinfo=timezone.utc)
-        else:
-            timestamp = timestamp.astimezone(timezone.utc)
+    def format_timestamp(self, timestamp_ns: Optional[int] = None) -> str:
+        """Format timestamp to RFC3339Nano format with nanosecond precision."""
+        if timestamp_ns is None:
+            timestamp_ns = time.time_ns()
 
-        return timestamp.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+        # Split into seconds and nanoseconds
+        seconds = timestamp_ns // 1_000_000_000
+        nanoseconds = timestamp_ns % 1_000_000_000
+
+        # Create datetime from seconds and format to RFC3339Nano
+        dt = datetime.fromtimestamp(seconds, tz=timezone.utc)
+        base_timestamp = dt.strftime("%Y-%m-%dT%H:%M:%S")
+
+        return f"{base_timestamp}.{nanoseconds:09d}Z"
 
     def format_message(self, message: str, max_length: Optional[int] = None) -> str:
         message = message.strip()
@@ -50,12 +55,12 @@ class LogFormatter:
         level: str,
         message: str,
         fields: Optional[Dict[str, Any]] = None,
-        timestamp: Optional[datetime] = None,
+        timestamp_ns: Optional[int] = None,
     ) -> Dict[str, Any]:
         return {
             "level": level.upper(),
             "message": self.format_message(message),
-            "timestamp": self.format_timestamp(timestamp),
+            "timestamp": self.format_timestamp(timestamp_ns),
             "fields": self.ensure_fields(fields),
         }
 

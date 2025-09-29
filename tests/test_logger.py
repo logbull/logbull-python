@@ -20,16 +20,7 @@ class TestLogBullLogger:
             yield mock_sender_instance
 
     @pytest.fixture
-    def mock_health_checker(self) -> Generator[Mock, None, None]:
-        """Mock HealthChecker to avoid network calls."""
-        with patch("logbull.core.sender.HealthChecker") as mock_health_class:
-            mock_health_instance = Mock()
-            mock_health_instance.check_availability.return_value = True
-            mock_health_class.return_value = mock_health_instance
-            yield mock_health_instance
-
-    @pytest.fixture
-    def logger(self, mock_sender: Mock, mock_health_checker: Mock) -> LogBullLogger:
+    def logger(self, mock_sender: Mock) -> LogBullLogger:
         """Create a test logger instance."""
         return LogBullLogger(
             project_id="12345678-1234-1234-1234-123456789012",
@@ -46,7 +37,6 @@ class TestLogBullLogger:
     def test_logger_initialization(
         self,
         mock_sender: Mock,
-        mock_health_checker: Mock,
     ) -> None:
         """Test basic logger initialization."""
         logger = LogBullLogger(
@@ -59,7 +49,6 @@ class TestLogBullLogger:
     def test_logger_initialization_with_options(
         self,
         mock_sender: Mock,
-        mock_health_checker: Mock,
     ) -> None:
         """Test logger initialization with custom options."""
         logger = LogBullLogger(
@@ -157,7 +146,6 @@ class TestLogBullLogger:
     def test_debug_level_filtering(
         self,
         mock_sender: Mock,
-        mock_health_checker: Mock,
     ) -> None:
         """Test that DEBUG messages are filtered when log_level is INFO."""
         logger = LogBullLogger(
@@ -175,7 +163,6 @@ class TestLogBullLogger:
     def test_debug_level_logger(
         self,
         mock_sender: Mock,
-        mock_health_checker: Mock,
     ) -> None:
         """Test DEBUG level logger processes all messages."""
         logger = LogBullLogger(
@@ -262,7 +249,6 @@ class TestLogBullLogger:
     def test_empty_message_validation(
         self,
         mock_sender: Mock,
-        mock_health_checker: Mock,
     ) -> None:
         """Test that empty messages raise appropriate errors."""
         logger = LogBullLogger(
@@ -283,7 +269,6 @@ class TestLogBullLogger:
     def test_initialization_with_context(
         self,
         mock_sender: Mock,
-        mock_health_checker: Mock,
     ) -> None:
         """Test initialization with default context."""
         context = {"app": "test", "version": "1.0"}

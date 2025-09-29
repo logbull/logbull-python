@@ -1,8 +1,8 @@
 """Loguru integration handler for LogBull."""
 
-from datetime import datetime
 from typing import Any, Dict, Optional
 
+from ..core.logger import _generate_unique_nanosecond_timestamp
 from ..core.sender import LogSender
 from ..core.types import LogBullConfig, LogEntry
 from ..utils import LogFormatter, LogValidator
@@ -44,16 +44,7 @@ class LoguruSink:
             record = message.record
 
             level = record["level"].name
-            text = record["message"]  # The raw message text
-            time = record["time"]
-
-            # Parse timestamp
-            timestamp = None
-            if time:
-                if hasattr(time, "timestamp"):
-                    timestamp = datetime.fromtimestamp(time.timestamp())
-                else:
-                    timestamp = datetime.now()
+            text = record["message"]
 
             # Extract fields from the record
             fields = self._extract_fields_from_record(record)
@@ -61,12 +52,15 @@ class LoguruSink:
             # Validate log entry
             validated = self.validator.validate_log_entry(level, text, fields)
 
+            # Generate unique timestamp with nanosecond precision
+            timestamp_ns = _generate_unique_nanosecond_timestamp()
+
             # Format log entry
             formatted_entry = self.formatter_util.format_log_entry(
                 level=validated["level"],
                 message=validated["message"],
                 fields=validated["fields"],
-                timestamp=timestamp,
+                timestamp_ns=timestamp_ns,
             )
 
             log_entry: LogEntry = {

@@ -208,12 +208,12 @@ structlog.configure(
         structlog.contextvars.merge_contextvars,
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.add_log_level,
-        structlog.processors.JSONRenderer(),
         StructlogProcessor(
             project_id="YOUR_PROJECT_ID",
             host="http://YOUR_LOGBULL_SERVER:4005",
             api_key="YOUR_API_KEY"  # optional, if you need it
         ),
+        structlog.processors.JSONRenderer(), # make sure it is the last processor
     ],
     wrapper_class=structlog.make_filtering_bound_logger(20),  # INFO level
     logger_factory=structlog.WriteLoggerFactory(),

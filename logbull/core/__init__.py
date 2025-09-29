@@ -1,11 +1,10 @@
 """LogBull core module."""
 
-from .health import HealthChecker
 from .logger import LogBullLogger
+from .registry import register_sender
 from .sender import LogSender
 from .types import (
     ContextManager,
-    HealthCheckResponse,
     LogBatch,
     LogBullConfig,
     LogBullResponse,
@@ -21,14 +20,13 @@ from .types import (
 __all__ = [
     "LogBullLogger",
     "LogSender",
-    "HealthChecker",
     "LogEntry",
     "LogBatch",
     "LogBullConfig",
     "LogBullResponse",
     "RejectedLog",
-    "HealthCheckResponse",
     "LogSenderProtocol",
     "LogProcessor",
     "ContextManager",
+    "register_sender",
 ]

@@ -1,6 +1,6 @@
 """Tests for LogBull configuration validation and error handling."""
 
-from typing import Generator, Tuple
+from typing import Generator
 from unittest.mock import Mock, patch
 
 import pytest
@@ -13,23 +13,14 @@ class TestConfigurationValidation:
     """Test configuration validation across all LogBull components."""
 
     @pytest.fixture
-    def mock_sender_and_health(self) -> Generator[Tuple[Mock, Mock], None, None]:
-        """Mock both LogSender and HealthChecker to avoid network calls."""
-        with patch("logbull.core.logger.LogSender") as mock_sender, patch(
-            "logbull.core.sender.HealthChecker"
-        ) as mock_health:
+    def mock_sender(self) -> Generator[Mock, None, None]:
+        """Mock LogSender to avoid network calls."""
+        with patch("logbull.core.logger.LogSender") as mock_sender_class:
             mock_sender_instance = Mock()
-            mock_health_instance = Mock()
-            mock_health_instance.check_availability.return_value = True
+            mock_sender_class.return_value = mock_sender_instance
+            yield mock_sender_instance
 
-            mock_sender.return_value = mock_sender_instance
-            mock_health.return_value = mock_health_instance
-
-            yield mock_sender_instance, mock_health_instance
-
-    def test_valid_project_id_formats(
-        self, mock_sender_and_health: Tuple[Mock, Mock]
-    ) -> None:
+    def test_valid_project_id_formats(self, mock_sender: Mock) -> None:
         """Test that valid project ID formats are accepted."""
         valid_uuids = [
             "12345678-1234-1234-1234-123456789012",
@@ -43,9 +34,7 @@ class TestConfigurationValidation:
             logger = LogBullLogger(project_id=project_id, host="http://localhost:4005")
             assert logger is not None
 
-    def test_invalid_project_id_formats(
-        self, mock_sender_and_health: Tuple[Mock, Mock]
-    ) -> None:
+    def test_invalid_project_id_formats(self, mock_sender: Mock) -> None:
         """Test that invalid project ID formats raise ValueError."""
         invalid_uuids = [
             "",  # Empty
@@ -63,7 +52,7 @@ class TestConfigurationValidation:
             ):
                 LogBullLogger(project_id=project_id, host="http://localhost:4005")
 
-    def test_valid_host_urls(self, mock_sender_and_health: Tuple[Mock, Mock]) -> None:
+    def test_valid_host_urls(self, mock_sender: Mock) -> None:
         """Test that valid host URLs are accepted."""
         valid_hosts = [
             "http://localhost:4005",
@@ -80,7 +69,7 @@ class TestConfigurationValidation:
             )
             assert logger is not None
 
-    def test_invalid_host_urls(self, mock_sender_and_health: Tuple[Mock, Mock]) -> None:
+    def test_invalid_host_urls(self, mock_sender: Mock) -> None:
         """Test that invalid host URLs raise ValueError."""
         invalid_hosts = [
             "",  # Empty
@@ -108,7 +97,7 @@ class TestConfigurationValidation:
                     f"Host '{host}' raised unexpected error: {type(e).__name__}: {e}"
                 )
 
-    def test_valid_api_keys(self, mock_sender_and_health: Tuple[Mock, Mock]) -> None:
+    def test_valid_api_keys(self, mock_sender: Mock) -> None:
         """Test that valid API keys are accepted."""
         valid_api_keys = [
             "test_api_key_123",
@@ -126,7 +115,7 @@ class TestConfigurationValidation:
             )
             assert logger is not None
 
-    def test_invalid_api_keys(self, mock_sender_and_health: Tuple[Mock, Mock]) -> None:
+    def test_invalid_api_keys(self, mock_sender: Mock) -> None:
         """Test that invalid API keys raise ValueError."""
         # Note: Empty string is valid (gets converted to None) since API key is optional
         invalid_api_keys = [
@@ -147,7 +136,7 @@ class TestConfigurationValidation:
                     api_key=api_key,
                 )
 
-    def test_valid_log_levels(self, mock_sender_and_health: Tuple[Mock, Mock]) -> None:
+    def test_valid_log_levels(self, mock_sender: Mock) -> None:
         """Test that valid log levels are accepted."""
         valid_levels = [
             "DEBUG",
@@ -181,9 +170,7 @@ class TestConfigurationValidation:
             )
             assert logger is not None
 
-    def test_invalid_log_levels(
-        self, mock_sender_and_health: Tuple[Mock, Mock]
-    ) -> None:
+    def test_invalid_log_levels(self, mock_sender: Mock) -> None:
         """Test that invalid log levels raise ValueError."""
         invalid_levels = [
             "",
@@ -217,10 +204,10 @@ class TestConfigurationValidation:
         api_key = "valid_api_key"
 
         with patch("logbull.core.logger.LogSender"), patch(
-            "logbull.core.sender.HealthChecker"
-        ), patch("logbull.handlers.standard.LogSender"), patch(
-            "logbull.handlers.loguru.LogSender"
-        ), patch("logbull.handlers.structlog.LogSender"):
+            "logbull.handlers.standard.LogSender"
+        ), patch("logbull.handlers.loguru.LogSender"), patch(
+            "logbull.handlers.structlog.LogSender"
+        ):
             # All components should accept the same valid configuration
             logger = LogBullLogger(project_id=project_id, host=host, api_key=api_key)
             handler = LogBullHandler(project_id=project_id, host=host, api_key=api_key)
@@ -244,17 +231,15 @@ class TestConfigurationValidation:
         ]
 
         with patch("logbull.core.logger.LogSender"), patch(
-            "logbull.core.sender.HealthChecker"
-        ), patch("logbull.handlers.standard.LogSender"), patch(
-            "logbull.handlers.loguru.LogSender"
-        ), patch("logbull.handlers.structlog.LogSender"):
+            "logbull.handlers.standard.LogSender"
+        ), patch("logbull.handlers.loguru.LogSender"), patch(
+            "logbull.handlers.structlog.LogSender"
+        ):
             for component_class in component_classes:
                 with pytest.raises(ValueError, match="Invalid project ID format"):
                     component_class(project_id=invalid_project_id, host=valid_host)
 
-    def test_whitespace_handling_in_config(
-        self, mock_sender_and_health: Tuple[Mock, Mock]
-    ) -> None:
+    def test_whitespace_handling_in_config(self, mock_sender: Mock) -> None:
         """Test that configuration handles whitespace correctly."""
         # Should trim whitespace and accept
         logger = LogBullLogger(
@@ -264,9 +249,7 @@ class TestConfigurationValidation:
         )
         assert logger is not None
 
-    def test_case_insensitive_log_levels(
-        self, mock_sender_and_health: Tuple[Mock, Mock]
-    ) -> None:
+    def test_case_insensitive_log_levels(self, mock_sender: Mock) -> None:
         """Test that log levels are case-insensitive."""
         logger = LogBullLogger(
             project_id="12345678-1234-1234-1234-123456789012",
@@ -275,9 +258,7 @@ class TestConfigurationValidation:
         )
         assert logger.log_level == "INFO"
 
-    def test_log_level_normalization(
-        self, mock_sender_and_health: Tuple[Mock, Mock]
-    ) -> None:
+    def test_log_level_normalization(self, mock_sender: Mock) -> None:
         """Test that log levels are normalized correctly."""
         test_cases = [
             ("FATAL", "CRITICAL"),
@@ -294,9 +275,7 @@ class TestConfigurationValidation:
             )
             assert logger.log_level == expected_level
 
-    def test_context_validation(
-        self, mock_sender_and_health: Tuple[Mock, Mock]
-    ) -> None:
+    def test_context_validation(self, mock_sender: Mock) -> None:
         """Test validation of context parameter."""
         valid_contexts = [
             None,
