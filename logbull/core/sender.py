@@ -1,4 +1,4 @@
-﻿import json
+import json
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -13,18 +13,13 @@ from .types import LogBatch, LogBullConfig, LogBullResponse, LogEntry
 
 
 class LogSender:
-    def __init__(self, config: LogBullConfig, is_debug: bool = False):
-        self.is_debug = is_debug
-        self._debug_print("LogSender.__init__ started")
+    def __init__(self, config: LogBullConfig):
         self.config = config
         self.formatter = LogFormatter()
 
         # Ensure batch size never exceeds 1000
         self.batch_size = min(config.get("batch_size", 1000), 1000)
         self.batch_interval = 1.0
-        self._debug_print(
-            f"LogSender batch_size={self.batch_size}, interval={self.batch_interval}"
-        )
 
         self._log_queue: Queue[LogEntry] = Queue()
         self._batch_thread: Optional[threading.Thread] = None
@@ -45,30 +40,23 @@ class LogSender:
 
         # Register this sender for automatic cleanup on app shutdown
         register_sender(self)
-        self._debug_print("LogSender.__init__ completed")
 
     def add_log_to_queue(self, log_entry: LogEntry) -> None:
-        self._debug_print("LogSender.add_log_to_queue called")
         if self._stop_event.is_set():
-            self._debug_print("Stop event is set, not adding log")
             return
 
         # Initialize thread lazily on first log
         if not self._thread_started:
-            self._debug_print("Batch processor not started, initializing...")
             with self._thread_init_lock:
                 if not self._thread_started:
                     self._start_batch_processor()
                     self._thread_started = True
-                    self._debug_print("Batch processor started")
 
         try:
             self._log_queue.put(log_entry, timeout=0.1)
             queue_size = self._log_queue.qsize()
-            self._debug_print(f"Log added to queue, queue_size={queue_size}")
 
             if queue_size >= self.batch_size:
-                self._debug_print("Queue size >= batch_size, triggering immediate send")
                 self._send_queued_logs()
 
         except Exception as e:
@@ -147,15 +135,11 @@ class LogSender:
         with self._executor_lock:
             # Don't create new executors during shutdown
             if self._shutdown_started:
-                self._debug_print("Shutdown started, not creating executor")
                 return None
 
             if self._executor is None:
                 # Start with minimum threads, will grow as needed
                 initial_threads = min(self._min_threads, self._max_threads)
-                self._debug_print(
-                    f"Creating new executor with {initial_threads} threads"
-                )
                 self._executor = ThreadPoolExecutor(
                     max_workers=initial_threads, thread_name_prefix="LogBull-Sender"
                 )
@@ -191,35 +175,27 @@ class LogSender:
                 ).start()
 
     def _start_batch_processor(self) -> None:
-        self._debug_print("LogSender._start_batch_processor called")
         self._batch_thread = threading.Thread(
             target=self._batch_processor_loop,
             name="LogBull-BatchProcessor",
             daemon=True,
         )
         self._batch_thread.start()
-        self._debug_print(f"Batch processor thread started: {self._batch_thread.name}")
 
     def _batch_processor_loop(self) -> None:
-        self._debug_print("Batch processor loop started")
         while not self._stop_event.is_set():
             try:
                 if self._stop_event.wait(timeout=self.batch_interval):
-                    self._debug_print("Batch processor loop stopping (stop event)")
                     break
 
-                self._debug_print("Batch processor loop tick, sending queued logs")
                 self._send_queued_logs()
 
             except Exception as e:
                 print(f"LogBull: Error in batch processor: {e}")
-        self._debug_print("Batch processor loop ended")
 
     def _send_queued_logs(self) -> None:
-        self._debug_print("LogSender._send_queued_logs called")
         # Check if shutdown has started before processing
         if self._shutdown_started:
-            self._debug_print("Shutdown started, not sending logs")
             return
 
         logs_to_send: List[LogEntry] = []
@@ -231,19 +207,14 @@ class LogSender:
             except Empty:
                 break
 
-        self._debug_print(f"Collected {len(logs_to_send)} logs to send")
         if logs_to_send:
             try:
                 executor = self._get_or_create_executor()
                 if executor is None:
-                    self._debug_print("Executor is None, can't submit tasks")
                     # Executor is shutdown, can't submit tasks
                     return
 
                 self._active_requests += 1
-                self._debug_print(
-                    f"Submitting {len(logs_to_send)} logs to executor, active_requests={self._active_requests}"
-                )
                 # Submit to thread pool without waiting for completion
                 executor.submit(self._send_logs_async, logs_to_send)
                 # Optionally check if we need to resize the executor
@@ -253,22 +224,17 @@ class LogSender:
                 self._active_requests -= 1
 
     def _send_logs_async(self, logs: List[LogEntry]) -> None:
-        self._debug_print(f"LogSender._send_logs_async called with {len(logs)} logs")
+        """Async wrapper for send_logs that handles completion"""
         try:
             response = self.send_logs(logs)
-            self._debug_print(f"Send response: {response}")
             self._handle_response(response, logs)
         except Exception as e:
             print(f"LogBull: Failed to send logs batch: {e}")
         finally:
             self._active_requests -= 1
-            self._debug_print(f"Active requests after send: {self._active_requests}")
 
     def _send_http_request(self, batch: LogBatch) -> LogBullResponse:
         url = f"{self.config['host']}/api/v1/logs/receiving/{self.config['project_id']}"
-        self._debug_print(
-            f"Sending HTTP request to {url} with {len(batch['logs'])} logs"
-        )
 
         try:
             data = json.dumps(batch).encode("utf-8")
@@ -280,9 +246,7 @@ class LogSender:
             if api_key:
                 request.add_header("X-API-Key", api_key)
 
-            self._debug_print("Opening URL connection...")
             with urlopen(request, timeout=30) as response:
-                self._debug_print(f"Got response status: {response.status}")
                 content = response.read().decode("utf-8")
 
                 if response.status in [200, 202]:
@@ -357,7 +321,3 @@ class LogSender:
                         if log_content.get("fields"):
                             print(f"    Fields: {log_content['fields']}")
                         print()
-
-    def _debug_print(self, message: str) -> None:
-        if self.is_debug:
-            print(f"[debug] {message}")

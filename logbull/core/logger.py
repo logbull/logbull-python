@@ -51,10 +51,7 @@ class LogBullLogger:
         log_level: str = "INFO",
         context: Optional[Dict[str, Any]] = None,
         sender: Optional[LogSender] = None,
-        is_debug: bool = False,
     ):
-        self.is_debug = is_debug
-        self._debug_print(f"LogBullLogger.__init__ started for project_id={project_id}")
         self.validator = LogValidator()
         self.formatter = LogFormatter()
 
@@ -77,12 +74,9 @@ class LogBullLogger:
 
         # Use provided sender or create new one
         if sender is not None:
-            self._debug_print("LogBullLogger using provided sender")
             self.sender = sender
         else:
-            self._debug_print("LogBullLogger creating new sender")
-            self.sender = LogSender(self.config, is_debug=self.is_debug)
-        self._debug_print("LogBullLogger.__init__ completed")
+            self.sender = LogSender(self.config)
 
     def log(
         self, level: str, message: str, fields: Optional[Dict[str, Any]] = None
@@ -120,7 +114,6 @@ class LogBullLogger:
             log_level=self.log_level,
             context=merged_context,
             sender=self.sender,
-            is_debug=self.is_debug,
         )
 
         return new_logger
@@ -135,14 +128,8 @@ class LogBullLogger:
         self, level: str, message: str, fields: Optional[Dict[str, Any]] = None
     ) -> None:
         try:
-            self._debug_print(
-                f"LogBullLogger._log called: level={level}, message={message[:50]}..."
-            )
             level_priority = self.LOG_LEVEL_PRIORITY.get(level.upper(), 0)
             if level_priority < self.min_level_priority:
-                self._debug_print(
-                    f"Log filtered out: level_priority={level_priority} < min={self.min_level_priority}"
-                )
                 return
 
             validated = self.validator.validate_log_entry(level, message, fields)
@@ -167,19 +154,12 @@ class LogBullLogger:
                 "fields": formatted_entry["fields"],
             }
 
-            self._debug_print("Printing log to console")
             self._print_to_console(log_entry)
 
-            self._debug_print("Adding log to sender queue")
             self.sender.add_log_to_queue(log_entry)
-            self._debug_print("Log added to sender queue successfully")
 
         except Exception as e:
             print(f"LogBull logging error: {e}")
-
-    def _debug_print(self, message: str) -> None:
-        if self.is_debug:
-            print(f"[debug] {message}")
 
     def _print_to_console(self, log_entry: LogEntry) -> None:
         level = log_entry["level"]
