@@ -169,3 +169,4 @@ uv.lock
 pgdata/
 docker-compose.yml
 data/
+CHANGELOG.md
