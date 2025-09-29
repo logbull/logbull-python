@@ -1,4 +1,4 @@
-﻿import json
+import json
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -26,6 +26,10 @@ class LogSender:
         self._stop_event = threading.Event()
         self._thread_init_lock = threading.Lock()
         self._thread_started = False
+
+        # Add shutdown flag to prevent new task submissions during shutdown
+        self._shutdown_started = False
+        self._shutdown_lock = threading.Lock()
 
         # ThreadPoolExecutor for concurrent HTTP requests
         self._executor: Optional[ThreadPoolExecutor] = None
@@ -101,6 +105,12 @@ class LogSender:
                 print(f"LogBull: Error during flush wait: {e}")
 
     def shutdown(self) -> None:
+        # Mark shutdown as started to prevent new task submissions
+        with self._shutdown_lock:
+            if self._shutdown_started:
+                return  # Already shutting down
+            self._shutdown_started = True
+
         self._stop_event.set()
 
         # Only flush if thread was started
@@ -120,8 +130,12 @@ class LogSender:
         if self._batch_thread and self._batch_thread.is_alive():
             self._batch_thread.join(timeout=10)
 
-    def _get_or_create_executor(self) -> ThreadPoolExecutor:
+    def _get_or_create_executor(self) -> Optional[ThreadPoolExecutor]:
         with self._executor_lock:
+            # Don't create new executors during shutdown
+            if self._shutdown_started:
+                return None
+
             if self._executor is None:
                 # Start with minimum threads, will grow as needed
                 initial_threads = min(self._min_threads, self._max_threads)
@@ -133,10 +147,13 @@ class LogSender:
 
     def _resize_executor_if_needed(self) -> None:
         """Dynamically adjust thread pool size based on load"""
-        if not self._executor:
+        if not self._executor or self._shutdown_started:
             return
 
         with self._executor_lock:
+            if self._shutdown_started:  # Double-check after acquiring lock
+                return
+
             current_threads = self._executor._max_workers
 
             # If we have many pending requests and can grow
@@ -176,6 +193,10 @@ class LogSender:
                 print(f"LogBull: Error in batch processor: {e}")
 
     def _send_queued_logs(self) -> None:
+        # Check if shutdown has started before processing
+        if self._shutdown_started:
+            return
+
         logs_to_send: List[LogEntry] = []
 
         while len(logs_to_send) < self.batch_size and not self._log_queue.empty():
@@ -188,6 +209,10 @@ class LogSender:
         if logs_to_send:
             try:
                 executor = self._get_or_create_executor()
+                if executor is None:
+                    # Executor is shutdown, can't submit tasks
+                    return
+
                 self._active_requests += 1
                 # Submit to thread pool without waiting for completion
                 executor.submit(self._send_logs_async, logs_to_send)
