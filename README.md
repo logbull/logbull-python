@@ -1,11 +1,16 @@
 # LogBull Python
 
+<div align="center">
+<img src="assets/logo.svg" style="margin-bottom: 20px;" alt="Log Bull Logo" width="250"/>
+
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![PyPI](https://img.shields.io/pypi/v/logbull.svg)](https://pypi.org/project/logbull/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
 A Python library for sending logs to [LogBull](https://github.com/logbull/logbull) - a self-hosted log collection system.
+</div>
+
 
 ## Table of Contents
 
