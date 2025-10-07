@@ -9,8 +9,8 @@
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
 A Python library for sending logs to [LogBull](https://github.com/logbull/logbull) - a self-hosted log collection system.
-</div>
 
+</div>
 
 ## Table of Contents
 
@@ -55,8 +55,8 @@ from logbull import LogBullLogger
 
 # Initialize logger
 logger = LogBullLogger(
-    project_id="YOUR_PROJECT_ID",
-    host="http://your-logbull-server:4005",
+    host="http://LOGBULL_HOST",
+    project_id="LOGBULL_PROJECT_ID",
     api_key="YOUR_API_KEY"  # optional, if you need it
 )
 
@@ -77,16 +77,16 @@ from logbull import LogBullLogger
 
 # Basic configuration (INFO level by default)
 logger = LogBullLogger(
-    project_id="YOUR_PROJECT_ID",
-    host="http://YOUR_LOGBULL_SERVER:4005",
+    host="http://LOGBULL_HOST",
+    project_id="LOGBULL_PROJECT_ID",
     api_key="YOUR_API_KEY"  # optional, if you need it
 )
 
 # With DEBUG level
 debug_logger = LogBullLogger(
-    project_id="YOUR_PROJECT_ID",
-    host="http://YOUR_LOGBULL_SERVER:4005",
-    api_key="YOUR_API_KEY"  # optional, if you need it
+    host="http://LOGBULL_HOST",
+    project_id="LOGBULL_PROJECT_ID",
+    api_key="YOUR_API_KEY",  # optional, if you need it
     log_level="DEBUG"  # optional, defaults to INFO
 )
 
@@ -155,8 +155,8 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 logbull_handler = LogBullHandler(
-    project_id="YOUR_PROJECT_ID",
-    host="http://YOUR_LOGBULL_SERVER:4005",
+    host="http://LOGBULL_HOST",
+    project_id="LOGBULL_PROJECT_ID",
     api_key="YOUR_API_KEY"  # optional, if you need it
 )
 logger.addHandler(logbull_handler)
@@ -182,8 +182,8 @@ from logbull import LoguruSink
 # Add LogBull as a Loguru sink
 logger.add(
     LoguruSink(
-        project_id="YOUR_PROJECT_ID",
-        host="http://YOUR_LOGBULL_SERVER:4005",
+        host="http://LOGBULL_HOST",
+        project_id="LOGBULL_PROJECT_ID",
         api_key="YOUR_API_KEY"  # optional, if you need it
     ),
     level="INFO",
@@ -214,8 +214,8 @@ structlog.configure(
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.add_log_level,
         StructlogProcessor(
-            project_id="YOUR_PROJECT_ID",
-            host="http://YOUR_LOGBULL_SERVER:4005",
+            host="http://LOGBULL_HOST",
+            project_id="LOGBULL_PROJECT_ID",
             api_key="YOUR_API_KEY"  # optional, if you need it
         ),
         structlog.processors.JSONRenderer(), # make sure it is the last processor
