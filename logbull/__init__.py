@@ -4,7 +4,7 @@ from .core import LogBullLogger
 from .handlers import LogBullHandler, LoguruSink, StructlogProcessor
 
 
-__version__ = "0.6.0"
+__version__ = "0.7.0"
 
 # Main exports
 __all__ = [
