@@ -8,7 +8,7 @@
 [![PyPI](https://img.shields.io/pypi/v/logbull.svg)](https://pypi.org/project/logbull/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-A Python library for sending logs to [LogBull](https://github.com/logbull/logbull) - a self-hosted log collection system.
+A Python library for sending logs to [LogBull](https://github.com/logbull/logbull) - a simple log collection system.
 
 </div>
 
@@ -51,6 +51,7 @@ pip install logbull
 The fastest way to start using LogBull - is to use itself as a logger.
 
 ```python
+import time
 from logbull import LogBullLogger
 
 # Initialize logger
@@ -66,6 +67,10 @@ logger.info("User logged in successfully", fields={
     "username": "john_doe",
     "ip": "192.168.1.100"
 })
+
+# Ensure all logs are sent before exiting
+logger.flush()
+time.sleep(5)
 ```
 
 ## Usage Examples
@@ -73,6 +78,7 @@ logger.info("User logged in successfully", fields={
 ### 1. Standalone LogBullLogger
 
 ```python
+import time
 from logbull import LogBullLogger
 
 # Basic configuration (INFO level by default)
@@ -107,6 +113,10 @@ debug_logger.debug("Processing user data", fields={
     "step": "validation",
     "user_id": "12345"
 })
+
+# Ensure all logs are sent before exiting
+logger.flush()
+time.sleep(5)
 ```
 
 #### Context Management
@@ -142,6 +152,10 @@ transaction_logger.info("Transaction completed", fields={
     "currency": "USD"
 })
 # Includes all previous context + new transaction context
+
+# Ensure all logs are sent before exiting
+logger.flush()
+time.sleep(5)
 ```
 
 ### 2. Python Logging Handler
