@@ -45,8 +45,8 @@ class LogBullLogger:
     def __init__(
         self,
         *,
-        project_id: str,
-        host: str,
+        project_id: Optional[str] = None,
+        host: Optional[str] = None,
         api_key: Optional[str] = None,
         log_level: str = "INFO",
         context: Optional[Dict[str, Any]] = None,
@@ -55,28 +55,50 @@ class LogBullLogger:
         self.validator = LogValidator()
         self.formatter = LogFormatter()
 
-        validated_config = self.validator.validate_config(
-            project_id=project_id,
-            host=host,
-            api_key=api_key,
-        )
-        self.config: LogBullConfig = {
-            "project_id": validated_config["project_id"],
-            "host": validated_config["host"],
-            "api_key": validated_config["api_key"],
-            "batch_size": validated_config["batch_size"],
-        }
+        # Check if credentials are provided
+        self.console_only_mode = project_id is None or host is None
+
+        if self.console_only_mode:
+            # Console-only mode: no credentials provided
+            if sender is None:
+                print(
+                    "LogBull: No credentials provided. Running in console-only mode. "
+                    "Logs will only be printed to the console and not sent to LogBull server."
+                )
+            self.config: LogBullConfig = {
+                "project_id": "",
+                "host": "",
+                "api_key": None,
+                "batch_size": 1000,
+            }
+            self.sender = None
+        else:
+            # Normal mode: validate and configure
+            # At this point, project_id and host are guaranteed to be non-None
+            assert project_id is not None
+            assert host is not None
+            validated_config = self.validator.validate_config(
+                project_id=project_id,
+                host=host,
+                api_key=api_key,
+            )
+            self.config = {
+                "project_id": validated_config["project_id"],
+                "host": validated_config["host"],
+                "api_key": validated_config["api_key"],
+                "batch_size": validated_config["batch_size"],
+            }
+
+            # Use provided sender or create new one
+            if sender is not None:
+                self.sender = sender
+            else:
+                self.sender = LogSender(self.config)
 
         self.log_level = self.validator.validate_log_level(str(log_level))
         self.min_level_priority = self.LOG_LEVEL_PRIORITY[self.log_level]
 
         self.context = self.formatter.ensure_fields(context) if context else {}
-
-        # Use provided sender or create new one
-        if sender is not None:
-            self.sender = sender
-        else:
-            self.sender = LogSender(self.config)
 
     def log(
         self, level: str, message: str, fields: Optional[Dict[str, Any]] = None
@@ -108,8 +130,8 @@ class LogBullLogger:
         merged_context = self.formatter.merge_context_fields(self.context, context)
 
         new_logger = LogBullLogger(
-            project_id=self.config["project_id"],
-            host=self.config["host"],
+            project_id=self.config.get("project_id") or None,
+            host=self.config.get("host") or None,
             api_key=self.config.get("api_key"),
             log_level=self.log_level,
             context=merged_context,
@@ -119,10 +141,12 @@ class LogBullLogger:
         return new_logger
 
     def flush(self) -> None:
-        self.sender.flush()
+        if self.sender is not None:
+            self.sender.flush()
 
     def shutdown(self) -> None:
-        self.sender.shutdown()
+        if self.sender is not None:
+            self.sender.shutdown()
 
     def _log(
         self, level: str, message: str, fields: Optional[Dict[str, Any]] = None
@@ -156,7 +180,9 @@ class LogBullLogger:
 
             self._print_to_console(log_entry)
 
-            self.sender.add_log_to_queue(log_entry)
+            # Only send to LogBull server if not in console-only mode
+            if self.sender is not None:
+                self.sender.add_log_to_queue(log_entry)
 
         except Exception as e:
             print(f"LogBull logging error: {e}")

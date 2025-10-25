@@ -70,7 +70,7 @@ logger.info("User logged in successfully", fields={
 
 # Ensure all logs are sent before exiting
 logger.flush()
-time.sleep(5)
+time.sleep(3)
 ```
 
 ## Usage Examples
@@ -114,9 +114,10 @@ debug_logger.debug("Processing user data", fields={
     "user_id": "12345"
 })
 
-# Ensure all logs are sent before exiting
+# We need to wait a bit in short-living scripts when logs
+# received by Log Bull. This is not needed in production
 logger.flush()
-time.sleep(5)
+time.sleep(3)
 ```
 
 #### Context Management
@@ -153,9 +154,10 @@ transaction_logger.info("Transaction completed", fields={
 })
 # Includes all previous context + new transaction context
 
-# Ensure all logs are sent before exiting
+# We need to wait a bit in short-living scripts when logs
+# received by Log Bull. This is not needed in production
 logger.flush()
-time.sleep(5)
+time.sleep(3)
 ```
 
 ### 2. Python Logging Handler
@@ -185,6 +187,11 @@ logger.error("Database error", extra={
     "query": "SELECT * FROM users",
     "error": "Connection timeout"
 })
+
+# We need to wait a bit in short-living scripts when logs
+# received by Log Bull. This is not needed in production
+logger.flush()
+time.sleep(3)
 ```
 
 ### 3. Loguru Integration
@@ -213,6 +220,11 @@ logger.error("Payment failed", order_id="ord_123", amount=99.99, currency="USD")
 bound_logger = logger.bind(request_id="req_789", session_id="sess_456")
 bound_logger.info("Request started")
 bound_logger.info("Request completed", duration_ms=250)
+
+# We need to wait a bit in short-living scripts when logs
+# received by Log Bull. This is not needed in production
+logger.flush()
+time.sleep(3)
 ```
 
 ### 4. Structlog Integration
@@ -256,6 +268,11 @@ logger.error("Payment gateway error",
     error_code="GATEWAY_TIMEOUT",
     retry_count=3
 )
+
+# We need to wait a bit in short-living scripts when logs
+# received by Log Bull. This is not needed in production
+logger.flush()
+time.sleep(3)
 ```
 
 ## Configuration Options

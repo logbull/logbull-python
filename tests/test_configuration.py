@@ -293,19 +293,37 @@ class TestConfigurationValidation:
             assert logger is not None
 
     def test_required_parameters(self) -> None:
-        """Test that required parameters raise errors when missing."""
-        with pytest.raises(TypeError):
-            # Missing project_id
-            LogBullLogger(host="http://localhost:4005")  # type: ignore[call-arg]
+        """Test that missing parameters result in console-only mode."""
+        # Missing project_id - should work in console-only mode
+        logger = LogBullLogger(host="http://localhost:4005")
+        assert logger is not None
+        assert logger.console_only_mode is True
+        assert logger.sender is None
 
-        with pytest.raises(TypeError):
-            # Missing host
-            LogBullLogger(project_id="12345678-1234-1234-1234-123456789012")  # type: ignore[call-arg]
+        # Missing host - should work in console-only mode
+        logger = LogBullLogger(project_id="12345678-1234-1234-1234-123456789012")
+        assert logger is not None
+        assert logger.console_only_mode is True
+        assert logger.sender is None
+
+        # Missing both - should work in console-only mode
+        logger = LogBullLogger()
+        assert logger is not None
+        assert logger.console_only_mode is True
+        assert logger.sender is None
 
     def test_none_values_for_required_params(self) -> None:
-        """Test that None values for required parameters raise appropriate errors."""
-        with pytest.raises((ValueError, TypeError, AttributeError)):
-            LogBullLogger(project_id=None, host="http://localhost:4005")  # type: ignore[arg-type]
+        """Test that None values for parameters result in console-only mode."""
+        # project_id=None - should work in console-only mode
+        logger = LogBullLogger(project_id=None, host="http://localhost:4005")
+        assert logger is not None
+        assert logger.console_only_mode is True
+        assert logger.sender is None
 
-        with pytest.raises((ValueError, TypeError, AttributeError)):
-            LogBullLogger(project_id="12345678-1234-1234-1234-123456789012", host=None)  # type: ignore[arg-type]
+        # host=None - should work in console-only mode
+        logger = LogBullLogger(
+            project_id="12345678-1234-1234-1234-123456789012", host=None
+        )
+        assert logger is not None
+        assert logger.console_only_mode is True
+        assert logger.sender is None

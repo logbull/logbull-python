@@ -14,33 +14,57 @@ class StructlogProcessor:
     def __init__(
         self,
         *,
-        project_id: str,
-        host: str,
+        project_id: Optional[str] = None,
+        host: Optional[str] = None,
         api_key: Optional[str] = None,
     ):
         self.validator = LogValidator()
         self.formatter_util = LogFormatter()
 
-        # Validate configuration
-        validated_config = self.validator.validate_config(
-            project_id=project_id,
-            host=host,
-            api_key=api_key,
-        )
+        # Check if credentials are provided
+        self.disabled = project_id is None or host is None
 
-        self.config: LogBullConfig = {
-            "project_id": validated_config["project_id"],
-            "host": validated_config["host"],
-            "api_key": validated_config["api_key"],
-            "batch_size": validated_config["batch_size"],
-        }
+        if self.disabled:
+            # No credentials: do nothing (Structlog will print)
+            print(
+                "LogBull: No credentials provided for StructlogProcessor. "
+                "Processor is disabled. Logs will not be sent to LogBull server."
+            )
+            self.config: LogBullConfig = {
+                "project_id": "",
+                "host": "",
+                "api_key": None,
+                "batch_size": 1000,
+            }
+            self.sender = None
+        else:
+            # Validate configuration
+            # At this point, project_id and host are guaranteed to be non-None
+            assert project_id is not None
+            assert host is not None
+            validated_config = self.validator.validate_config(
+                project_id=project_id,
+                host=host,
+                api_key=api_key,
+            )
 
-        self.sender = LogSender(self.config)
+            self.config = {
+                "project_id": validated_config["project_id"],
+                "host": validated_config["host"],
+                "api_key": validated_config["api_key"],
+                "batch_size": validated_config["batch_size"],
+            }
+
+            self.sender = LogSender(self.config)
 
     def __call__(
         self, logger: Any, name: str, event_dict: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Process a Structlog event and send to LogBull."""
+        # If processor is disabled, do nothing (just pass through)
+        if self.disabled or self.sender is None:
+            return event_dict
+
         try:
             # Extract information from event_dict
             level = event_dict.get("level", "info").upper()
@@ -90,14 +114,16 @@ class StructlogProcessor:
 
     def flush(self) -> None:
         """Flush any pending log records."""
-        try:
-            self.sender.flush()
-        except Exception:
-            pass
+        if self.sender is not None:
+            try:
+                self.sender.flush()
+            except Exception:
+                pass
 
     def close(self) -> None:
         """Close the processor and cleanup resources."""
-        try:
-            self.sender.shutdown()
-        except Exception:
-            pass
+        if self.sender is not None:
+            try:
+                self.sender.shutdown()
+            except Exception:
+                pass

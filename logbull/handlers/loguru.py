@@ -14,31 +14,55 @@ class LoguruSink:
     def __init__(
         self,
         *,
-        project_id: str,
-        host: str,
+        project_id: Optional[str] = None,
+        host: Optional[str] = None,
         api_key: Optional[str] = None,
     ):
         self.validator = LogValidator()
         self.formatter_util = LogFormatter()
 
-        # Validate configuration
-        validated_config = self.validator.validate_config(
-            project_id=project_id,
-            host=host,
-            api_key=api_key,
-        )
+        # Check if credentials are provided
+        self.disabled = project_id is None or host is None
 
-        self.config: LogBullConfig = {
-            "project_id": validated_config["project_id"],
-            "host": validated_config["host"],
-            "api_key": validated_config["api_key"],
-            "batch_size": validated_config["batch_size"],
-        }
+        if self.disabled:
+            # No credentials: do nothing (Loguru will print)
+            print(
+                "LogBull: No credentials provided for LoguruSink. "
+                "Sink is disabled. Logs will not be sent to LogBull server."
+            )
+            self.config: LogBullConfig = {
+                "project_id": "",
+                "host": "",
+                "api_key": None,
+                "batch_size": 1000,
+            }
+            self.sender = None
+        else:
+            # Validate configuration
+            # At this point, project_id and host are guaranteed to be non-None
+            assert project_id is not None
+            assert host is not None
+            validated_config = self.validator.validate_config(
+                project_id=project_id,
+                host=host,
+                api_key=api_key,
+            )
 
-        self.sender = LogSender(self.config)
+            self.config = {
+                "project_id": validated_config["project_id"],
+                "host": validated_config["host"],
+                "api_key": validated_config["api_key"],
+                "batch_size": validated_config["batch_size"],
+            }
+
+            self.sender = LogSender(self.config)
 
     def __call__(self, message: Any) -> None:
         """Process a Loguru log message."""
+        # If sink is disabled, do nothing
+        if self.disabled or self.sender is None:
+            return
+
         try:
             # Extract information directly from the loguru Message object
             record = message.record
@@ -78,17 +102,19 @@ class LoguruSink:
 
     def flush(self) -> None:
         """Flush any pending log records."""
-        try:
-            self.sender.flush()
-        except Exception:
-            pass
+        if self.sender is not None:
+            try:
+                self.sender.flush()
+            except Exception:
+                pass
 
     def close(self) -> None:
         """Close the sink and cleanup resources."""
-        try:
-            self.sender.shutdown()
-        except Exception:
-            pass
+        if self.sender is not None:
+            try:
+                self.sender.shutdown()
+            except Exception:
+                pass
 
     def _extract_fields_from_record(self, record: Dict[str, Any]) -> Dict[str, Any]:
         """Extract custom fields from Loguru record dictionary."""
